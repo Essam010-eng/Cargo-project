@@ -29,6 +29,9 @@ app.use("/api" ,cardamagerouter);
 
 app.use("/api" , recomendationrouter);
 
+app.get("/", (req, res) => {
+  res.send("Backend is running 🚀");
+});
 
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
