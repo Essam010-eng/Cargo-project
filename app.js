@@ -16,10 +16,14 @@ const options = {
     customJs: [
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.js',
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js'
-    ]
+    ],
+    customSiteTitle: "Car Go API Docs",
+    swaggerOptions: {
+    persistAuthorization: true,
+    }
 };
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec, {}, options));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec, false, options));
 
 const orderrouter = require("./routes/orderrouter");
 const userrouter = require("./routes/userrouter");
