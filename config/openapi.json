@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "https://cargo-project-production.up.railway.app"
+      "url": "https://cargo-project-phi.vercel.app"
     }
   ],
   "components": {
