@@ -11,7 +11,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static("images"));
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+const options = {
+    customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+    customJs: [
+    'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js'
+    ]
+};
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec, {}, options));
 
 const orderrouter = require("./routes/orderrouter");
 const userrouter = require("./routes/userrouter");
