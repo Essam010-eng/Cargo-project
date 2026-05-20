@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const checkauth = require("../middlewares/checkauth");
-const checkrole = require("../middlewares/checkrole"); // لو عندك role system
+const checkrole = require("../middlewares/checkrole"); 
 const {
     getMe,
     updateMe,
@@ -11,7 +11,6 @@ const {
     deleteUser
 } = require("../controller/usercontroller");
 
-// GET all users (admin فقط)
 router.get(
     "/",
     checkauth,
@@ -19,7 +18,6 @@ router.get(
     getAllUsers
 );
 
-// GET single user (admin فقط)
 router.get(
     "/:id",
     checkauth,
@@ -27,7 +25,6 @@ router.get(
     getUserById
 );
 
-// UPDATE user (user نفسه أو admin حسب تصميمك)
 router.put(
     "/:id",
     checkauth,
@@ -40,7 +37,7 @@ router.get(
     getMe
 );
 
-// DELETE user (admin فقط)
+
 router.delete(
     "/:id",
     checkauth,

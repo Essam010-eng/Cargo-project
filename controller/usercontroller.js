@@ -2,7 +2,6 @@ const User = require("../models/user");
 const AppError = require("../helpers/globalerrorehandler");
 
 
-// 🟢 Get My Profile
 const getMe = async (req, res, next) => {
     try {
         const user = await User.findById(req.user._id).select("-password");
@@ -22,7 +21,6 @@ const getMe = async (req, res, next) => {
 };
 
 
-// 🟢 Update My Profile (safe update)
 const updateMe = async (req, res, next) => {
     try {
         const allowedFields = {
@@ -54,8 +52,6 @@ const updateMe = async (req, res, next) => {
     }
 };
 
-
-// 🟢 Get All Users (Admin only)
 const getAllUsers = async (req, res, next) => {
     try {
         if (!req.user || req.user.role !== "admin") {
@@ -76,7 +72,6 @@ const getAllUsers = async (req, res, next) => {
 };
 
 
-// 🟢 Get User By ID (Admin only)
 const getUserById = async (req, res, next) => {
     try {
         if (!req.user || req.user.role !== "admin") {
@@ -100,7 +95,6 @@ const getUserById = async (req, res, next) => {
 };
 
 
-// 🔴 Delete User (Admin only)
 const deleteUser = async (req, res, next) => {
     try {
         if (!req.user || req.user.role !== "admin") {

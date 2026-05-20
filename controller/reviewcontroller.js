@@ -1,11 +1,9 @@
 const Review = require("../models/reviwe");
 
-// 🟢 Create Review
 const createReview = async (req, res, next) => {
     try {
         const { product, rating, comment } = req.body;
 
-        // منع تكرار review لنفس المنتج من نفس المستخدم
         const exist = await Review.findOne({
             user: req.user._id,
             product
@@ -36,7 +34,6 @@ const createReview = async (req, res, next) => {
 };
 
 
-// 🟢 Get All Reviews
 const getAllReviews = async (req, res, next) => {
     try {
         const reviews = await Review.find()
@@ -55,7 +52,6 @@ const getAllReviews = async (req, res, next) => {
 };
 
 
-// 🟢 Get One Review
 const getOneReview = async (req, res, next) => {
     try {
         const review = await Review.findById(req.params.id)
@@ -79,8 +75,6 @@ const getOneReview = async (req, res, next) => {
     }
 };
 
-
-// 🟡 Update Review (only owner)
 const updateReview = async (req, res, next) => {
     try {
         const review = await Review.findOneAndUpdate(
@@ -113,7 +107,7 @@ const updateReview = async (req, res, next) => {
 };
 
 
-// 🔴 Delete Review (only owner)
+
 const deleteReview = async (req, res, next) => {
     try {
         const review = await Review.findOneAndDelete({
@@ -139,7 +133,6 @@ const deleteReview = async (req, res, next) => {
 };
 
 
-// 🟢 Get Reviews for specific product
 const getProductReviews = async (req, res, next) => {
     try {
         const reviews = await Review.find({

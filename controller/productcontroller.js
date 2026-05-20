@@ -6,7 +6,6 @@ const { override } = require("joi");
 const jwt = require("jsonwebtoken");
 
 
-// Get all products
 const getAllProducts = async (req, res, next) => {
     try {
         const allProducts = await Product.find();
@@ -21,8 +20,6 @@ const getAllProducts = async (req, res, next) => {
     }
 };
 
-
-// Get one product by name
 const getOneProduct = async (req, res, next) => {
     try {
         const { name } = req.params;
@@ -41,7 +38,6 @@ const getOneProduct = async (req, res, next) => {
     }
 };
 
-// Create product
 const createProduct = async (req, res, next) => {
     try {
         const {
@@ -71,7 +67,6 @@ const createProduct = async (req, res, next) => {
             owner : req.user.id
         });
 
-        // Calculate average rating AFTER save
         const reviews = await Review.aggregate([
             { $match: { product: newProduct._id } },
             {

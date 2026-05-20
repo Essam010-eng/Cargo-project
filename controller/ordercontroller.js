@@ -2,7 +2,6 @@ const checkauth = require("../middlewares/checkauth");
 const Order = require("../models/order");
 
 
-// 🟢 Create Order (User only)
 const createOrder = async (req, res, next) => {
     try {
         const userId = req.user._id;
@@ -31,7 +30,6 @@ const createOrder = async (req, res, next) => {
     }
 };
 
-// 🟢 Get My Orders (User)
 const getMyOrders = async (req, res, next) => {
     try {
         if (!req.user) {
@@ -53,7 +51,7 @@ const getMyOrders = async (req, res, next) => {
     }
 };
 
-// 🟢 Get All Orders (Admin)
+
 const getAllOrders = async (req, res, next) => {
     try {
         if (!req.user || req.user.role !== "admin") {
@@ -76,7 +74,7 @@ const getAllOrders = async (req, res, next) => {
     }
 };
 
-// 🟢 Update Order Status (Admin)
+
 const updateOrderStatus = async (req, res, next) => {
     try {
         if (!req.user || req.user.role !== "admin") {

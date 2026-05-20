@@ -5,9 +5,14 @@ const dbConnection = require("./config/dbconnection");
 const productRouter = require("./routes/productrouter");
 const authRouter = require("./routes/authrouter");
 const AppError = require("./helpers/globalerrorehandler");
+const swaggerUi = require("swagger-ui-express");
+const openapiSpec = require("./config/openapi.json");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static("images"));
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
 const orderrouter = require("./routes/orderrouter");
 const userrouter = require("./routes/userrouter");
 const reviewrouter = require("./routes/reviewrouter");
@@ -30,7 +35,7 @@ app.use("/api" ,cardamagerouter);
 app.use("/api" , recomendationrouter);
 
 app.get("/", (req, res) => {
-  res.send("Backend is running 🚀");
+    res.send("Backend is running 🚀");
 });
 
 app.use((err, req, res, next) => {
