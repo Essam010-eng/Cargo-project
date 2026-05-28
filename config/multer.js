@@ -1,13 +1,20 @@
 const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const AppError = require("../helpers/globalerrorehandler");
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, "images");
+cloudinary.config({ 
+    cloud_name: process.env.cloud_name, 
+    api_key: process.env.api_key, 
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: "cargo-products",
+        allowed_formats: ["jpg", "png", "jpeg"],
     },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + "-" + file.originalname);
-    }
 });
 
 const fileFilter = (req, file, cb) => {
