@@ -20,12 +20,25 @@ const getAllProducts = async (req, res, next) => {
     }
 };
 
+const getAllProductsforsearche = async (req, res, next) => {
+    try {
+        let query = {}; 
+        if (req.query.name) {
+            query.name = { $regex: req.query.name, $options: 'i' }; 
+        }
+        const products = await Product.find(query);
+    }
+    catch(err){
+        next(err)
+    }
+}
+
 const getOneProduct = async (req, res, next) => {
     try {
-        const { name } = req.params;
+        const { id } = req.params;
         const product = await Product.findOne(
             { 
-                name 
+                id 
             });
 
         if (!product) {
@@ -142,10 +155,10 @@ const sellergetallproduct = async (req, res, next) => {
 
 const sellergetoneproduct = async (req, res, next) => {
     try {
-        const { name } = req.params;
+        const { id } = req.params;
         const product = await Product.findOne(
             { 
-                name ,
+                id ,
                 owner : req.user.id
             });
 
@@ -223,5 +236,6 @@ module.exports = {
     sellergetoneproduct,
     sellerupdateput,
     sellerupdatepatch,
-    sellerdeleteproduct
+    sellerdeleteproduct,
+    getAllProductsforsearche
 };
