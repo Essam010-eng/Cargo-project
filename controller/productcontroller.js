@@ -102,7 +102,7 @@ const createProduct = async (req, res, next) => {
 
 const updateproductpatch = async (req,res,next) =>{
     try{
-        const updateproduct = await product.findByIdAndUpdate(req.params.id ,req.body , {new : true})
+        const updateproduct = await Product.findByIdAndUpdate(req.params.id ,req.body , {new : true})
         if(!updateproduct) {
             return next(new AppError(404 , "cant find the product"));
         }   
@@ -115,7 +115,7 @@ const updateproductpatch = async (req,res,next) =>{
 
 const updateproductput = async (req,res,next) =>{
     try{
-        const updateproduct = await product.findByIdAndUpdate(req.params.id ,req.body , {new : true , overwrite : true})
+        const updateproduct = await Product.findByIdAndUpdate(req.params.id ,req.body , {new : true , overwrite : true})
         if(!updateproduct) {
             return next(new AppError(404 , "cant find the product"));
         }   
@@ -128,7 +128,7 @@ const updateproductput = async (req,res,next) =>{
 
 const deleteproduct = async (req,res,next) =>{
     try{
-        const updateproduct = await product.findByIdAndDelete(req.params.id);
+        const updateproduct = await Product.findByIdAndDelete(req.params.id);
         if(!updateproduct) {
             return next(new AppError(404 , "cant find the product"));
         }   
@@ -174,7 +174,7 @@ const sellergetoneproduct = async (req, res, next) => {
 
 const sellerupdatepatch = async (req,res,next) =>{
     try{
-        const updateproduct = await product.findByIdAndUpdate({
+        const updateproduct = await Product.findByIdAndUpdate({
             _id :req.params.id,
             owner : req.user.id
         } ,req.body , {new : true})
@@ -191,7 +191,7 @@ const sellerupdatepatch = async (req,res,next) =>{
 
 const sellerupdateput = async (req,res,next) =>{
     try{
-        const updateproduct = await product.findByIdAndUpdate({
+        const updateproduct = await Product.findByIdAndUpdate({
             _id :req.params.id,
             owner : req.user.id
         } ,req.body , {new : true , overwrite : true})
@@ -209,7 +209,7 @@ const sellerupdateput = async (req,res,next) =>{
 
 const sellerdeleteproduct = async (req,res,next) =>{
     try{
-        const updateproduct = await product.findByIdAndDelete(
+        const updateproduct = await Product.findByIdAndDelete(
             {
             _id : req.params.id,
             owner : req.user.id
