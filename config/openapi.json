@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "https://cargo-project-phi.vercel.app"
+      "url": "https://cargo-project-production.up.railway.app"
     }
   ],
   "components": {
@@ -283,6 +283,18 @@
     },
 
     "/api/product/{id}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get one product by ID (admin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "The unique product ID", "schema": { "type": "string" } }
+        ],
+        "responses": { 
+          "200": { "description": "OK" },
+          "404": { "description": "Product not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
       "patch": {
         "tags": ["Products"],
         "summary": "Update product patch (admin)",
@@ -345,12 +357,15 @@
     "/api/product/seller/{id}": {
       "get": {
         "tags": ["Products"],
-        "summary": "Get one seller product by name (seller)",
+        "summary": "Get one seller product by ID (seller)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+          { "name": "id", "in": "path", "required": true, "description": "The unique product ID owned by the seller", "schema": { "type": "string" } }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": { 
+          "200": { "description": "OK" },
+          "404": { "description": "Product not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
       },
       "patch": {
         "tags": ["Products"],
