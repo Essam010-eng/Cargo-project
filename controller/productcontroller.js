@@ -27,6 +27,7 @@ const getAllProductsforsearche = async (req, res, next) => {
             query.name = { $regex: req.query.name, $options: 'i' }; 
         }
         const products = await Product.find(query);
+        res.send(products)
     }
     catch(err){
         next(err)
@@ -158,7 +159,7 @@ const sellergetoneproduct = async (req, res, next) => {
         const { id } = req.params;
         const product = await Product.findOne(
             { 
-                id ,
+                _id: id ,
                 owner : req.user.id
             });
 
