@@ -1,28 +1,56 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-const reviewSchema = mongoose.Schema({
+const reviewSchema = new mongoose.Schema({
     user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "user",
-        required: true
+        type: mongoose.Schema.ObjectId,
+        ref: 'User',
+        required: [true, 'Review must belong to a user.']
     },
     product: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "product",
-        required: true
+        type: mongoose.Schema.ObjectId,
+        ref: 'Product',
+        required: [true, 'Review must belong to a product.']
     },
     rating: {
         type: Number,
-        required: [true, "Rating is required"],
         min: 1,
-        max: 5
+        max: 5,
+        required: [true, 'Review must have a rating.']
     },
     comment: {
         type: String,
-        trim: true
+        required: [true, 'Review cannot be empty!']
     }
-}, {
-    timestamps: true
+}, { timestamps: true });
+
+reviewSchema.statics.calcAverageRatings = async function(productId) {
+    const stats = await this.aggregate([
+        { $match: { product: productId } },
+        {
+            $group: {
+                _id: "$product",
+                avgRating: { $avg: "$rating" },
+                ratingsQuantity: { $sum: 1 }
+            }
+        }
+    ]);
+
+    if (stats.length > 0) {
+        await mongoose.model('Product').findByIdAndUpdate(productId, {
+            ratingsAverage: stats[0].avgRating,
+            ratingsQuantity: stats[0].ratingsQuantity
+        });
+    } else {
+        await mongoose.model('Product').findByIdAndUpdate(productId, {
+            ratingsAverage: 0,
+            ratingsQuantity: 0
+        });
+    }
+};
+
+reviewSchema.post('save', function() {
+    this.constructor.calcAverageRatings(this.product);
 });
 
-module.exports = mongoose.model("Review", reviewSchema);
+const Review = mongoose.model('Review', reviewSchema);
+module.exports = Review;

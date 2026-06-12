@@ -81,19 +81,6 @@ const createProduct = async (req, res, next) => {
             owner : req.user.id
         });
 
-        const reviews = await Review.aggregate([
-            { $match: { product: newProduct._id } },
-            {
-                $group: {
-                    _id: "$product",
-                    avgRating: { $avg: "$rating" }
-                }
-            }
-        ]);
-
-        newProduct.averageRating = reviews[0]?.avgRating || 0;
-        await newProduct.save();
-
         res.status(201).json(newProduct);
     } catch (err) {
         next(err);
