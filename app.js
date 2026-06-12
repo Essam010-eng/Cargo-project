@@ -7,10 +7,13 @@ const authRouter = require("./routes/authrouter");
 const AppError = require("./helpers/globalerrorehandler");
 const swaggerUi = require("swagger-ui-express");
 const openapiSpec = require("./config/openapi.json");
+const helmet = require("helmet");
+const cors = require("cors");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static("images"));
-
+app.use(helmet());
+app.use(cors());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
