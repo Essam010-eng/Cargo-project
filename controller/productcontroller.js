@@ -129,7 +129,7 @@ const deleteproduct = async (req,res,next) =>{
 
 const sellergetallproduct = async (req, res, next) => {
     try {
-        const allProducts = await Product.find({owner : req.user.id});
+        const allProducts = await Product.find({owner : req.user._id});
 
         if (allProducts.length === 0) {
             return next(new AppError(404, "No products found"));
