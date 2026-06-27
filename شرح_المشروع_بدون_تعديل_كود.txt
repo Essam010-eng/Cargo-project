@@ -1,0 +1,371 @@
+ملف شرح المشروع (بدون أي تعديل على الكود)
+
+اسم المشروع: Car Go API (Node.js + Express + MongoDB/Mongoose)
+
+---
+1) Overview العام (app.js)
+- نقطة الدخول الأساسية هي app.js.
+- يتم تهيئة:
+  - express.json و express.urlencoded لاستقبال body.
+  - تقديم مجلد images عبر /images.
+  - middleware لـ helmet و cors لتحسين الأمان والسماح بالطلبات.
+  - إعداد Swagger UI على /api-docs باستخدام config/openapi.json.
+- يتم استيراد Routers متعددة وتوصيلها تحت مسارات:
+  - /api/auth -> routes/authrouter.js
+  - /api/product -> routes/productrouter.js
+  - /api/order -> routes/orderrouter.js
+  - /api/user -> routes/userrouter.js
+  - /api/review -> routes/reviewrouter.js
+  - /api -> routes/cardamagerouter.js (كشف damage)
+  - /api -> routes/recomendationrouter.js (التوصيات)
+- يوجد handler أخير للأخطاء (middleware error handler داخل app.js) يرجع JSON فيه:
+  - status: "errore"
+  - message: err.message
+- يتم تشغيل السيرفر عبر app.listen(process.env.port) ثم استدعاء dbConnection().
+
+---
+2) الاتصال بقاعدة البيانات (config/dbconnection.js)
+- يستخدم mongoose للاتصال.
+- دالة dbconection تقوم بعمل mongoose.connect(process.env.db_url).
+- عند النجاح يطبع "db connect successful".
+- عند الفشل يطبع سبب الفشل ويرمي الخطأ.
+
+---
+3) التعامل مع الـ Upload/الصور
+3.1) رفع صور المنتجات على Cloudinary (config/multer.js)
+- يستخدم multer مع CloudinaryStorage (multer-storage-cloudinary).
+- Cloudinary config يتم تحميلها من env:
+  - cloud_name, api_key, CLOUDINARY_API_SECRET
+- storage.params:
+  - folder: "cargo-products"
+  - format: يتم أخذ الامتداد من mimetype
+  - public_id: اسم الملف بدون الامتداد + Date.now
+- fileFilter:
+  - يسمح فقط بـ jpeg/png/jpg
+  - غير ذلك يرجع AppError(400, "Images only (jpg, png, jpeg)")
+- limits: حجم الملف حتى 50MB
+- export: upload (multer instance).
+
+3.2) رفع صورة لاكتشاف تلف كروت/أجزاء (routes/cardamagerouter.js)
+- يستخدم multer.memoryStorage() (بدون رفع على Disk أو Cloudinary).
+- upload.single('image') ثم يتم تمرير req.file.buffer للـ AI.
+
+---
+4) Middleware للتحقق من الـ Auth و Roles
+4.1) تحقق JWT (middlewares/checkauth.js)
+- يبحث عن token في header: Authorization: Bearer <token>
+- إذا لا يوجد token -> AppError(401, "You are not logged in, please log in to get access")
+- verify JWT باستخدام process.env.secret_key
+- يفك الـ decoded ثم يبحث عن المستخدم في قاعدة البيانات:
+  - User.findById(decoded.id)
+- إذا المستخدم غير موجود -> AppError(401, "The user belonging to this token no longer exists")
+- عند النجاح:
+  - req.user = finduser
+  - next()
+- إذا أي خطأ -> AppError(401, "Invalid token or token expired")
+
+4.2) صلاحيات المستخدم حسب Role (middlewares/checkrole.js)
+- checkRole(...roles) يُرجع middleware.
+- إذا req.user غير موجود -> 401 Unauthorized
+- إذا req.user.role غير موجود ضمن roles المطلوبة -> 403 Forbidden
+- غير ذلك -> next()
+
+4.3) ملف middlewares/auth.js
+- هذا الملف يُستخدم في routes/authrouter للـ register/login.
+- يقوم بعمل register و login (باستخدام JWT + bcrypt).
+
+---
+5) Error Handling (helpers/globalerrorehandler.js)
+- تعريف class apperrore extends Error
+- constructor(status, message): يحفظ status ويستدعي super(message)
+- module.exports = apperrore
+ملاحظة: يستخدم في checkauth و multer و usercontroller/productcontroller وغيرها.
+
+---
+6) النماذج (Models / Mongoose Schemas)
+6.1) User (models/user.js)
+- username: String required (trim)
+- password: String required minlength 6
+- email: String unique lowercase
+- address: String required
+- role: enum ["admin", "seller"] required
+- createdAt: Date default Date.now
+
+6.2) Product (models/products.js)
+- name, description, category (كلهم String required)
+- price: Number required
+- stock: Number required
+- colorimage: array of { color, images:[String] }
+- carsforproduct: array of { name }
+- owner: ObjectId required
+- averageRating: Number default 0
+- createdAt: Date default Date.now
+
+6.3) Review (models/reviwe.js)
+- user: ObjectId ref User required
+- product: ObjectId ref Product required
+- rating: Number من 1 إلى 5 required
+- comment: String required
+- timestamps: true
+- يوجد static calcAverageRatings(productId)
+  - aggregate لاحتساب متوسط rating و عدد التقييمات
+  - تحديث حقول على Product:
+    - ratingsAverage
+    - ratingsQuantity
+- يوجد hook post('save') يستدعي calcAverageRatings(this.product)
+
+ملاحظة مهمة: في Product Schema موجود averageRating وليس ratingsAverage/ratingQuantity. هذا اختلاف منطقي داخل الكود.
+
+6.4) Order (models/order.js)
+- user: ObjectId ref "user" required
+- products: array عناصر:
+  - product: ObjectId ref "product" required
+  - quantity: Number required min 1
+  - price: Number required
+- totalPrice: Number required
+- status: enum ['pending','shipping','delivered'] default 'pending'
+- createdAt: Date default Date.now
+- pre("save") يحسب totalPrice من products.reduce( quantity * price )
+
+---
+7) Controllers & Business Logic
+7.1) Auth Controller (middlewares/auth.js)
+- register(req,res,next)
+  - يأخذ username,password,email,address,role
+  - يمنع email مكرر
+  - لو role == admin: يمنع وجود admin سابق
+  - password hash عبر bcrypt.hash(password,10)
+  - jwt.sign({id:newUser._id, role:newUser.role}, secret_key, expiresIn:"1d")
+  - يرجع: 201 { user:newUser, token }
+- login(req,res,next)
+  - email,password
+  - يجد user بالـ email
+  - bcrypt.compare
+  - jwt sign بنفس المبدأ
+  - يرجع: 200 { user, token }
+
+7.2) User Controller (controller/usercontroller.js)
+- getMe
+  - يجد المستخدم باستخدام req.user._id ويعمل select("-password")
+  - إذا غير موجود -> AppError(404, "User not found")
+- updateMe
+  - يسمح بتحديث username و email فقط
+  - findByIdAndUpdate(req.user._id, allowedFields, {new:true, runValidators:true})
+  - select("-password")
+- getAllUsers / getUserById / deleteUser
+  - كلهم بشرط req.user.role == "admin" عبر checkRole + تحقق إضافي في الدوال
+  - يعيدون بيانات بدون password
+  - deleteUser يستخدم findByIdAndDelete
+
+7.3) Product Controller (controller/productcontroller.js)
+- getAllProducts
+  - Product.find()
+  - إذا empty -> AppError(404, "No products found")
+- getAllProductsforsearche
+  - بناء query {} ثم لو req.query.name موجود يستخدم regex case-insensitive:
+    - { $regex: req.query.name, $options:'i' }
+  - Product.find(query)
+  - res.send(products)
+- getOneProduct
+  - يجد product عبر Product.findOne({ id })
+  - ملاحظة: يستخدم key اسمها id وليس _id (قد يكون mismatch لو الـ client بيرسل _id)
+- createProduct
+  - يقرأ fields من req.body
+  - filePaths = req.files.map(file => file.path)
+  - Product.create بإضافة:
+    - carsforproduct
+    - colorimage: [{ color, images:filePaths }]
+    - owner: req.user.id
+- updateproductpatch
+  - findByIdAndUpdate(req.params.id, req.body, {new:true})
+- updateproductput
+  - findByIdAndUpdate(req.params.id, req.body, {new:true, overwrite:true})
+- deleteproduct
+  - findByIdAndDelete(req.params.id)
+- seller* endpoints:
+  - sellergetallproduct -> Product.find({ owner: req.user._id })
+  - sellergetoneproduct -> findOne({_id:id, owner:req.user.id})
+  - sellerupdatepatch / sellerupdateput / sellerdeleteproduct
+    - جميعها تعمل قيود owner=req.user.id
+
+7.4) Review Controller (controller/reviewcontroller.js)
+- createReview
+  - يمنع user يراجع نفس product مرتين:
+    - Review.findOne({ user:req.user._id, product })
+  - Review.create({ user, product, rating, comment })
+  - يرجع 201
+- getAllReviews
+  - Review.find() + populate:
+    - user (username email)
+    - product (name price)
+- getOneReview
+  - findById + populate user و product
+- updateReview
+  - findOneAndUpdate({_id:req.params.id, user:req.user._id}, req.body, {new:true, runValidators:true})
+- deleteReview
+  - findOneAndDelete({_id:req.params.id, user:req.user._id})
+- getProductReviews
+  - Review.find({ product:req.params.productId }) + populate user
+
+7.5) Order Controller (controller/ordercontroller.js)
+- createOrder
+  - req.user._id كـ userId
+  - req.body.products مصفوفة
+  - إذا products فارغة -> 400
+  - new Order({ user:userId, products }) ثم save()
+- getMyOrders
+  - Order.find({ user:req.user._id }) + populate("products.product")
+- getAllOrders
+  - admin only
+  - Order.find().populate("user").populate("products.product")
+- updateOrderStatus
+  - admin only
+  - findByIdAndUpdate(id, {status}, {new:true})
+
+7.6) Recommendation Controller (controller/recomendationcontroller.js)
+يعتمد على استدعاء AI Service عبر axios.
+- BASE_URL = 'https://abdoelhadray-recommendation-system.hf.space/recommend'
+
+Endpoints:
+1) getRecommendationByContent
+   - query param: itemName
+   - axios GET `${BASE_URL}/content-based` مع params:
+     - item_name: itemName
+     - timeout: 3000
+   - إذا AI failed: log warn ثم fallback: Product.find({}).limit(10)
+   - إذا رجع recommendedNames:
+     - Product.find({ name: { $in: recommendedNames } }).lean()
+     - ثم sort حسب ترتيب recommendedNames
+
+2) getTrendingRecommendations
+   - query param: limit (default 10)
+   - axios GET `${BASE_URL}/trending` ب top_n=limit
+   - إذا فشل AI: warning
+   - إذا trendingNames موجودة:
+     - find منتجات بالـ names
+   - else:
+     - find كلها sort averageRating desc limit(limit)
+   - بعد جلب المنتجات:
+     - جمع reviews لكل product من Review model
+     - حساب liveAverageRating و totalReviewsCount لكل منتج
+     - ثم sort المنتجات حسب liveAverageRating desc
+
+3) getCollaborativeRecommendations
+   - query param: userId
+   - axios GET `${BASE_URL}/collaborative` مع user_id
+   - إذا فشل أو رجع empty:
+     - fallback axios GET `${BASE_URL}/trending` top_n=6
+     - وإن فشل fallback: يعتمد على DB مباشرة
+   - إذا recommendedNames موجودة:
+     - Product.find({ name: { $in: recommendedNames } }).lean()
+   - else:
+     - sort averageRating desc limit(6)
+
+7.7) Card Damage Controller (controller/cardamageconstroller.js)
+- detectDamage
+  - لازم req.file موجود (upload.single('image'))
+  - إذا لا يوجد file -> 400
+  - يستخدم FormData ويرسل buffer الصورة إلى API:
+    - POST https://abdoelhadray-cardamage.hf.space/detect/damage/all
+  - headers: form.getHeaders()
+  - يرجع aiResponse.data
+  - في حالة خطأ: 500 برسالة general
+
+---
+8) Routers (مسارات الـ API)
+8.1) routes/authrouter.js
+- POST /api/auth/register -> register
+- POST /api/auth/login -> login
+
+8.2) routes/productrouter.js
+- router.use(checkauth) على مستوى الـ router (يعني معظم endpoints تتطلب JWT)
+- GET /api/product/ (admin) -> getAllProducts
+- GET /api/product/seller (seller) -> sellergetallproduct
+- GET /api/product/seller/search (seller) -> getAllProductsforsearche
+- GET /api/product/search (admin) -> getAllProductsforsearche
+- GET /api/product/:name (admin) -> getOneProduct
+- POST /api/product/ (admin,seller)
+  - upload.array('images',5)
+  - createProduct
+- PATCH /api/product/:id (admin)
+  - upload.array('images',5)
+  - updateproductpatch
+- PUT /api/product/:id (admin)
+  - upload.array('images',5)
+  - updateproductpatch (نفس patch handler)
+- DELETE /api/product/:id (admin) -> deleteproduct
+
+- Seller specific:
+  - GET /api/product/seller/:id
+  - PATCH /api/product/seller/:id
+  - PUT /api/product/seller/:id
+  - DELETE /api/product/seller/:id
+
+8.3) routes/reviewrouter.js
+- POST /api/review (auth) -> createReview
+- GET /api/review -> getAllReviews
+- GET /api/review/product/:productId -> getProductReviews
+- GET /api/review/:id -> getOneReview
+- PUT /api/review/:id (auth) -> updateReview
+- DELETE /api/review/:id (auth) -> deleteReview
+
+8.4) routes/orderrouter.js
+- POST /api/order (auth) -> createOrder
+- GET /api/order/my (auth) -> getMyOrders
+- GET /api/order/ (admin) -> getAllOrders
+- PATCH /api/order/:id (admin) -> updateOrderStatus
+
+8.5) routes/userrouter.js
+- GET /api/user/ (admin) -> getAllUsers
+- GET /api/user/:id (admin) -> getUserById
+- PUT /api/user/:id (auth) -> updateMe
+- GET /api/user/:id (auth) -> getMe  (ملاحظة: getMe عادة ما يكون /me بدون id، لكن الكود موجود كما هو)
+- DELETE /api/user/:id (admin) -> deleteUser
+
+8.6) routes/cardamagerouter.js
+- POST /api/detect-damage
+  - upload.single('image')
+  - detectDamage
+
+8.7) routes/recomendationrouter.js
+- GET /api/recommend/content?itemName=... -> getRecommendationByContent
+- GET /api/recommend/trending?limit=... -> getTrendingRecommendations
+- GET /api/recommend/user?userId=... -> getCollaborativeRecommendations
+
+---
+9) Swagger / OpenAPI (config/openapi.json)
+- الملف يعرّف schemas لـ:
+  - ErrorResponse, AuthRegisterRequest, AuthLoginRequest, AuthResponse
+  - Product, CreateProductRequest
+  - CreateOrderRequest, UpdateOrderStatusRequest
+  - Review, CreateReviewRequest, UpdateReviewRequest
+  - DetectDamageResponse
+  - User
+- كما يعرّف paths لكل endpoint تقريباً (Auth, Products, Orders, Users, Reviews, Card Damage, Recommendation).
+
+---
+10) ملاحظات تقنية مهمة (بدون تغيير كود)
+- يوجد اختلاف في أسماء حقول التقييم داخل Review model مقارنة بـ Product model:
+  - Product يحوي averageRating
+  - لكن Review يستخدم ratingsAverage و ratingsQuantity أثناء التحديث
+- في productcontroller getOneProduct يستخدم:
+  - Product.findOne({ id })
+  - وقد تكون مشكلة لو المنتج معرفه _id وليس id.
+- في productrouter يوجد تعارض منطقي نسبي:
+  - PUT /:id يستخدم updateproductpatch (مش updateproductput)
+  - هذا قد يكون مقصود أو bug.
+
+---
+11) الخلاصة
+المشروع عبارة عن Backend REST API:
+- تسجيل/دخول JWT
+- CRUD للمنتجات (مع رفع صور على Cloudinary)
+- CRUD للتقييمات (Reviews)
+- إنشاء/عرض/تحديث حالات الطلبات (Orders)
+- إدارة المستخدمين للأدمن
+- كشف تلف/تشققات في صور سيارات عبر AI API خارجي
+- نظام توصيات عبر AI (Content-based + Trending + Collaborative) مع fallback إلى قاعدة البيانات
+
+---
+تم إنشاء هذا الملف بهدف الشرح فقط، بدون تعديل أي جزء من الكود.
+
