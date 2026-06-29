@@ -20,7 +20,8 @@ const checkauth = require("../middlewares/checkauth");
 const router = Router();
 
 router.get("/", getAllProducts);
-router.get("/seller/search", checkrole("seller"), getAllProductsforsearche);
+router.get("/seller/search", getAllProductsforsearche);
+
 router.use(checkauth); 
 
 router.get("/admin", checkrole("admin"), getAllProducts);

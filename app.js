@@ -22,6 +22,7 @@ const userrouter = require("./routes/userrouter");
 const reviewrouter = require("./routes/reviewrouter");
 const cardamagerouter = require("./routes/cardamagerouter");
 const recomendationrouter = require("./routes/recomendationrouter");
+const generateproduct = require("./routes/generateproduct")
 
 
 app.use("/api/auth", authRouter);
@@ -37,6 +38,8 @@ app.use("/api/review" , reviewrouter);
 app.use("/api" ,cardamagerouter);
 
 app.use("/api" , recomendationrouter);
+
+app.use("/api" , generateproduct)
 
 app.get("/", (req, res) => {
     res.send("Backend is running 🚀");
