@@ -57,32 +57,38 @@ exports.getTrendingRecommendations = async (req, res) => {
                 params: { top_n: limit },
                 timeout: 3000
             });
-            
+
             // تحويل مصفوفة الـ Objects إلى مصفوفة Strings صريحة
             if (aiResponse.data && Array.isArray(aiResponse.data)) {
                 trendingNames = aiResponse.data.map(item => {
                     if (typeof item === 'object' && item !== null) {
-                        return item.Name || item.name; // يأخذ الاسم سواء كان N كبيرة أو صغيرة
+                        return item.Name || item.name;
                     }
                     return item;
-                }).filter(Boolean); // حذف أي قيم فارغة إن وجدت
+                }).filter(Boolean);
             }
         } catch (aiError) {
             console.warn("تنبيه: سيرفر الـ AI متوقف في Trending:", aiError.message);
         }
 
-        let products;
+        let products = [];
 
         if (trendingNames && trendingNames.length > 0) {
             products = await Product.find({ name: { $in: trendingNames } }).lean();
-            
-            // ترتيب آمن لا يسبب كراش حتى لو اختلف حالة الأحرف
-            products.sort((a, b) => {
-                const indexA = trendingNames.findIndex(name => name.toLowerCase() === a.name.toLowerCase());
-                const indexB = trendingNames.findIndex(name => name.toLowerCase() === b.name.toLowerCase());
-                return indexA - indexB;
-            });
-        } else {
+
+            if (products.length > 0) {
+                // ترتيب آمن لا يسبب كراش حتى لو اختلف حالة الأحرف
+                products.sort((a, b) => {
+                    const indexA = trendingNames.findIndex(name => name.toLowerCase() === a.name.toLowerCase());
+                    const indexB = trendingNames.findIndex(name => name.toLowerCase() === b.name.toLowerCase());
+                    return indexA - indexB;
+                });
+            }
+        }
+
+        // ✅ Fallback على الداتابيز: لو الـ AI متوقف، أو رجع أسماء، لكن مفيش ولا واحدة منها
+        // موجودة فعلياً في الداتابيز (مثلاً الموديل مدرب على داتاسيت تجريبي مختلف عن منتجاتنا الحقيقية)
+        if (products.length === 0) {
             products = await Product.find({})
                 .sort({ averageRating: -1 })
                 .limit(limit)
@@ -97,9 +103,8 @@ exports.getTrendingRecommendations = async (req, res) => {
         const allReviews = await Review.find({ product: { $in: productIds } });
 
         for (let product of products) {
-            // 💡 تعديل آمن: التأكد أن r.product موجود قبل تحويله لنص لـمنع الـ Cast Error
             const reviews = allReviews.filter(r => r.product && r.product.toString() === product._id.toString());
-            
+
             if (reviews.length > 0) {
                 const totalRating = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
                 product.liveAverageRating = Number((totalRating / reviews.length).toFixed(1));
@@ -112,25 +117,23 @@ exports.getTrendingRecommendations = async (req, res) => {
 
         // الترتيب النهائي حسب التقييم الحي
         products.sort((a, b) => (b.liveAverageRating || 0) - (a.liveAverageRating || 0));
-        
+
         return res.status(200).json({ success: true, data: products });
 
     } catch (error) {
-        // طباعة الخطأ كامل بالـ Stack Trace في السيرفر لنعرف السطر بالظبط لو استمرت المشكلة
         console.error("Trending Critical Error Details:", error);
         return res.status(500).json({ success: false, message: "حدث خطأ داخلي غير متوقع في السيرفر" });
     }
 };
-
 
 exports.getCollaborativeRecommendations = async (req, res) => {
     try {
         const { userId } = req.query;
 
         if (!userId) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "برجاء إرسال رقم تعريف المستخدم في الـ Query Parameter باسم userId" 
+            return res.status(400).json({
+                success: false,
+                message: "برجاء إرسال رقم تعريف المستخدم في الـ Query Parameter باسم userId"
             });
         }
 
@@ -141,26 +144,28 @@ exports.getCollaborativeRecommendations = async (req, res) => {
                 params: { user_id: userId },
                 timeout: 3000
             });
-            recommendedNames = aiResponse.data;
+
+            // ✅ نفس معالجة الـ trending: تحويل الـ objects لـ strings صريحة
+            if (aiResponse.data && Array.isArray(aiResponse.data)) {
+                recommendedNames = aiResponse.data.map(item => {
+                    if (typeof item === 'object' && item !== null) {
+                        return item.Name || item.name;
+                    }
+                    return item;
+                }).filter(Boolean);
+            }
         } catch (aiError) {
             console.warn("تنبيه: سيرفر الـ AI متوقف في Collaborative:", aiError.message);
         }
 
-        let products;
-
-
-        if (!recommendedNames || recommendedNames.length === 0) {
-            try {
-                const fallbackAiResponse = await axios.get(`${BASE_URL}/trending`, { params: { top_n: 6 }, timeout: 2000 });
-                recommendedNames = fallbackAiResponse.data;
-            } catch (fallbackError) {
-                console.warn("حتى الـ الـ Fallback AI متوقف، سيتم الاعتماد على قاعدة البيانات مباشرة");
-            }
-        }
+        let products = [];
 
         if (recommendedNames && recommendedNames.length > 0) {
             products = await Product.find({ name: { $in: recommendedNames } }).lean();
-        } else {
+        }
+
+        // Fallback: لو الـ AI متوقف، أو الأسماء الراجعة منه مالها أي تطابق حقيقي في الداتابيز
+        if (products.length === 0) {
             products = await Product.find({}).sort({ averageRating: -1 }).limit(6).lean();
         }
 
